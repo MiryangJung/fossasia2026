@@ -1,5 +1,5 @@
 import { Image as ExpoImage } from "expo-image";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { GalleryGrid, ITEM_SIZE } from "../components/GalleryGrid";
 import { MeasureOverlay } from "../components/MeasureOverlay";
@@ -8,30 +8,45 @@ import { useMipmaps, MipmapPhoto } from "../hooks/useMipmaps";
 import { useLoadTimeTracker } from "../hooks/useLoadTimeTracker";
 import { Stack } from "expo-router";
 
+function MipmapItem({
+  item,
+  onLoaded,
+}: {
+  item: MipmapPhoto;
+  onLoaded: (startMs: number) => void;
+}) {
+  const mountTime = useRef(performance.now());
+
+  useEffect(() => {
+    mountTime.current = performance.now();
+  }, [item.id]);
+
+  return (
+    <ExpoImage
+      source={{ uri: item.mipmapUri }}
+      style={styles.image}
+      recyclingKey={item.id}
+      transition={0}
+      onLoad={() => {
+        onLoaded(mountTime.current);
+      }}
+    />
+  );
+}
+
 export default function MipmapsScreen() {
-  const { photos, loadTimeMs } = useMediaLibraryPhotos();
+  const { photos, totalCount } = useMediaLibraryPhotos({ loadAll: true });
   const { mipmaps, progress, generationTimeMs } = useMipmaps(photos);
   const tracker = useLoadTimeTracker();
-  const loadStartTimes = useRef<Map<string, number>>(new Map());
 
   const renderItem = useCallback(
     (item: MipmapPhoto) => {
       return (
         <View style={styles.itemContainer}>
-          <ExpoImage
-            source={{ uri: item.mipmapUri }}
-            style={styles.image}
-            recyclingKey={item.id}
-            transition={0}
-            onLoadStart={() => {
-              loadStartTimes.current.set(item.id, performance.now());
-            }}
-            onLoadEnd={() => {
-              const startMs = loadStartTimes.current.get(item.id);
-              if (startMs) {
-                tracker.onLoadEnd(startMs);
-                loadStartTimes.current.delete(item.id);
-              }
+          <MipmapItem
+            item={item}
+            onLoaded={(startMs) => {
+              tracker.onLoadEnd(startMs);
             }}
           />
         </View>
@@ -46,10 +61,9 @@ export default function MipmapsScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: "Mipmaps + FlashList" }} />
       <MeasureOverlay
-        totalPhotos={photos.length}
+        totalPhotos={totalCount}
         loadedCount={tracker.stats.count}
         avgLoadTimeMs={tracker.stats.avgMs}
-        mediaLoadTimeMs={loadTimeMs}
         onReset={tracker.reset}
       />
       {progress.done < progress.total && (

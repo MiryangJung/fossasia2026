@@ -4,19 +4,25 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const MODES = [
   {
-    title: "RN Image + FlashList",
-    subtitle: "Baseline — React Native built-in Image",
+    title: "1. RN Image + FlashList",
+    subtitle: "React Native built-in Image",
     route: "/rn-image" as const,
     color: "#e74c3c",
   },
   {
-    title: "Expo Image + FlashList",
+    title: "2. useImage + FlashList",
+    subtitle: "expo-image useImage hook",
+    route: "/context-rerender" as const,
+    color: "#e67e22",
+  },
+  {
+    title: "3. Expo Image + FlashList",
     subtitle: "expo-image component",
     route: "/expo-image" as const,
     color: "#3498db",
   },
   {
-    title: "Mipmaps + FlashList",
+    title: "4. Mipmaps + FlashList",
     subtitle: "Downscaled thumbnails via ImageManipulator",
     route: "/mipmaps" as const,
     color: "#2ecc71",

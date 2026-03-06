@@ -1,5 +1,5 @@
 import { Image as ExpoImage } from "expo-image";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { GalleryGrid, ITEM_SIZE } from "../components/GalleryGrid";
 import { MeasureOverlay } from "../components/MeasureOverlay";
@@ -10,29 +10,44 @@ import {
 import { useLoadTimeTracker } from "../hooks/useLoadTimeTracker";
 import { Stack } from "expo-router";
 
+function ExpoImageItem({
+  item,
+  onLoaded,
+}: {
+  item: PhotoAsset;
+  onLoaded: (startMs: number) => void;
+}) {
+  const mountTime = useRef(performance.now());
+
+  useEffect(() => {
+    mountTime.current = performance.now();
+  }, [item.id]);
+
+  return (
+    <ExpoImage
+      source={{ uri: item.uri }}
+      style={styles.image}
+      recyclingKey={item.id}
+      transition={0}
+      onLoad={() => {
+        onLoaded(mountTime.current);
+      }}
+    />
+  );
+}
+
 export default function ExpoImageScreen() {
-  const { photos, loadTimeMs } = useMediaLibraryPhotos();
+  const { photos, totalCount, loadMore } = useMediaLibraryPhotos();
   const tracker = useLoadTimeTracker();
-  const loadStartTimes = useRef<Map<string, number>>(new Map());
 
   const renderItem = useCallback(
     (item: PhotoAsset) => {
       return (
         <View style={styles.itemContainer}>
-          <ExpoImage
-            source={{ uri: item.uri }}
-            style={styles.image}
-            recyclingKey={item.id}
-            transition={0}
-            onLoadStart={() => {
-              loadStartTimes.current.set(item.id, performance.now());
-            }}
-            onLoadEnd={() => {
-              const startMs = loadStartTimes.current.get(item.id);
-              if (startMs) {
-                tracker.onLoadEnd(startMs);
-                loadStartTimes.current.delete(item.id);
-              }
+          <ExpoImageItem
+            item={item}
+            onLoaded={(startMs) => {
+              tracker.onLoadEnd(startMs);
             }}
           />
         </View>
@@ -47,16 +62,16 @@ export default function ExpoImageScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: "Expo Image + FlashList" }} />
       <MeasureOverlay
-        totalPhotos={photos.length}
+        totalPhotos={totalCount}
         loadedCount={tracker.stats.count}
         avgLoadTimeMs={tracker.stats.avgMs}
-        mediaLoadTimeMs={loadTimeMs}
         onReset={tracker.reset}
       />
       <GalleryGrid
         data={photos}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        onEndReached={loadMore}
       />
     </View>
   );

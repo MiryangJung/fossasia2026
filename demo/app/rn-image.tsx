@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import * as MediaLibrary from "expo-media-library";
 import { GalleryGrid, ITEM_SIZE } from "../components/GalleryGrid";
@@ -12,20 +12,21 @@ import { Stack } from "expo-router";
 
 function ResolvedImage({
   item,
-  onLoadStart,
-  onLoadEnd,
+  onResolved,
 }: {
   item: PhotoAsset;
-  onLoadStart: () => void;
-  onLoadEnd: () => void;
+  onResolved: (startMs: number) => void;
 }) {
   const [localUri, setLocalUri] = useState<string | null>(null);
 
   useEffect(() => {
+    setLocalUri(null);
     let cancelled = false;
+    const startMs = performance.now();
     MediaLibrary.getAssetInfoAsync(item.id).then((info) => {
       if (!cancelled && info.localUri) {
         setLocalUri(info.localUri);
+        onResolved(startMs);
       }
     });
     return () => {
@@ -41,16 +42,13 @@ function ResolvedImage({
     <Image
       source={{ uri: localUri }}
       style={styles.image}
-      onLoadStart={onLoadStart}
-      onLoadEnd={onLoadEnd}
     />
   );
 }
 
 export default function RnImageScreen() {
-  const { photos, loadTimeMs } = useMediaLibraryPhotos();
+  const { photos, totalCount, loadMore } = useMediaLibraryPhotos();
   const tracker = useLoadTimeTracker();
-  const loadStartTimes = useRef<Map<string, number>>(new Map());
 
   const renderItem = useCallback(
     (item: PhotoAsset) => {
@@ -58,15 +56,8 @@ export default function RnImageScreen() {
         <View style={styles.itemContainer}>
           <ResolvedImage
             item={item}
-            onLoadStart={() => {
-              loadStartTimes.current.set(item.id, performance.now());
-            }}
-            onLoadEnd={() => {
-              const startMs = loadStartTimes.current.get(item.id);
-              if (startMs) {
-                tracker.onLoadEnd(startMs);
-                loadStartTimes.current.delete(item.id);
-              }
+            onResolved={(startMs) => {
+              tracker.onLoadEnd(startMs);
             }}
           />
         </View>
@@ -81,16 +72,16 @@ export default function RnImageScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: "RN Image + FlashList" }} />
       <MeasureOverlay
-        totalPhotos={photos.length}
+        totalPhotos={totalCount}
         loadedCount={tracker.stats.count}
         avgLoadTimeMs={tracker.stats.avgMs}
-        mediaLoadTimeMs={loadTimeMs}
         onReset={tracker.reset}
       />
       <GalleryGrid
         data={photos}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        onEndReached={loadMore}
       />
     </View>
   );

@@ -3,16 +3,14 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 type Props = {
   totalPhotos: number;
   loadedCount: number;
-  avgLoadTimeMs: number;
-  mediaLoadTimeMs: number | null;
-  onReset: () => void;
+  avgLoadTimeMs?: number;
+  onReset?: () => void;
 };
 
 export function MeasureOverlay({
   totalPhotos,
   loadedCount,
   avgLoadTimeMs,
-  mediaLoadTimeMs,
   onReset,
 }: Props) {
   return (
@@ -20,16 +18,18 @@ export function MeasureOverlay({
       <Text style={styles.text}>
         Images: {loadedCount} / {totalPhotos}
       </Text>
-      <Text style={styles.text}>
-        Avg load: {avgLoadTimeMs > 0 ? `${avgLoadTimeMs.toFixed(1)}ms` : "-"}
-      </Text>
-      <Text style={styles.text}>
-        Media load:{" "}
-        {mediaLoadTimeMs != null ? `${mediaLoadTimeMs.toFixed(0)}ms` : "..."}
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={onReset}>
-        <Text style={styles.buttonText}>Reset</Text>
-      </TouchableOpacity>
+      {avgLoadTimeMs != null && (
+        <Text style={styles.text}>
+          Avg load: {avgLoadTimeMs > 0 ? `${avgLoadTimeMs.toFixed(1)}ms` : "-"}
+        </Text>
+      )}
+      {onReset && (
+        <View style={styles.row}>
+          <TouchableOpacity style={styles.button} onPress={onReset}>
+            <Text style={styles.buttonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -44,15 +44,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     zIndex: 100,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 8,
+    gap: 4,
   },
   text: {
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   button: {
     backgroundColor: "#ff4444",
