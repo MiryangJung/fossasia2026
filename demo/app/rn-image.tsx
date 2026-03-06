@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
+import * as MediaLibrary from "expo-media-library";
 import { GalleryGrid, ITEM_SIZE } from "../components/GalleryGrid";
 import { MeasureOverlay } from "../components/MeasureOverlay";
 import {
@@ -8,6 +9,43 @@ import {
 } from "../hooks/useMediaLibraryPhotos";
 import { useLoadTimeTracker } from "../hooks/useLoadTimeTracker";
 import { Stack } from "expo-router";
+
+function ResolvedImage({
+  item,
+  onLoadStart,
+  onLoadEnd,
+}: {
+  item: PhotoAsset;
+  onLoadStart: () => void;
+  onLoadEnd: () => void;
+}) {
+  const [localUri, setLocalUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    MediaLibrary.getAssetInfoAsync(item.id).then((info) => {
+      if (!cancelled && info.localUri) {
+        setLocalUri(info.localUri);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id]);
+
+  if (!localUri) {
+    return <View style={styles.image} />;
+  }
+
+  return (
+    <Image
+      source={{ uri: localUri }}
+      style={styles.image}
+      onLoadStart={onLoadStart}
+      onLoadEnd={onLoadEnd}
+    />
+  );
+}
 
 export default function RnImageScreen() {
   const { photos, loadTimeMs } = useMediaLibraryPhotos();
@@ -18,9 +56,8 @@ export default function RnImageScreen() {
     (item: PhotoAsset) => {
       return (
         <View style={styles.itemContainer}>
-          <Image
-            source={{ uri: item.uri }}
-            style={styles.image}
+          <ResolvedImage
+            item={item}
             onLoadStart={() => {
               loadStartTimes.current.set(item.id, performance.now());
             }}
