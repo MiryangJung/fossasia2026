@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+ios/
+android/
+.temp-photos/
+.DS_Store
+*.log
+.claude/
+.agents/
+.cursor/
+.vscode/
+skills-lock.json
+pouchit-app/
