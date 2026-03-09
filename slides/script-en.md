@@ -1,154 +1,327 @@
 # Speaker Script (English Only)
 
-Target: ~10 minutes (~1,300 words at 130 WPM)
+Target: ~15 minutes (~1,800 words at 130 WPM)
 
 ---
 
-## Slide 1: Title + Self-intro (40s)
+## Slide 1: Title (20s)
 
-Hello everyone, I'm Miryang Jung. I'm a Senior Frontend Engineer at Grandeclip.
-I'm so happy to be here in Thailand, the land of Muay Thai. I actually bought so much boxing gear at Twins while I'm here - I've been boxing for about a year now, so this trip has been extra special.
-Today I'll share how we reduced memory usage from over 2GB down to under 200MB when rendering large image lists in React Native. I built a demo app to reproduce each optimization step and measured the results on a real device. The numbers you'll see are from that demo - your exact results may vary depending on device, OS version, and photo library, but the relative improvements should be consistent.
-
----
-
-## Slide 2: Why Build an In-App Photo Picker? (40s)
-
-So why did we need to build our own photo picker?
-If you've used the default system picker on iOS or Android, you know it works fine for basic use cases. But it has real limitations.
-We needed album-specific image lists, masonry layouts, variable grid columns - things you simply can't do with the system picker.
-We also needed multi-select with a custom UI and full control over the selection experience.
-So we decided to build our own in-app gallery. And that's when the problems started.
+Hi everyone, thank you for being here!
+We were building an in-app gallery.
+Users scroll through their photos, pick one, done.
+Simple, right?
+But when they scrolled fast, the app crashed.
+Just gone.
+That's a terrible experience.
+So we had to fix it.
+And today, I want to share what we learned.
 
 ---
 
-## Slide 3: The Problem (50s)
+## Slide 2: About Me (30s)
 
-Here's the simplest possible implementation. Take a FlatList, feed it 1,809 photos from the device library, and render each one with a basic React Native Image component.
-What happens? Memory spikes dramatically and the app crashes.
-Why? Because every single cell is loading the full-resolution original image. We're talking 12-megapixel photos - 4032 by 3024 pixels each - being decoded for a tiny 96 by 96 point thumbnail. Each decoded photo takes roughly 48 megabytes of raw bitmap data in memory.
-There's no view recycling, so every cell that scrolls into view creates a brand new Image instance. And there's no caching, so scrolling back up loads everything again from scratch.
-This is obviously not going to work. So how do we fix it?
-
----
-
-## Slide 4: How Other Gallery Apps Solve This (40s)
-
-Before jumping into code, let's think about how other gallery apps handle this. Apps like Google Photos or Samsung Gallery display thousands of photos smoothly. What's their strategy?
-First, they index metadata first and load actual image data only on demand.
-Second, they use pre-generated low-resolution thumbnails sized exactly to the display grid.
-Third, they recycle views - when a cell scrolls off screen, it gets reused for a new photo rather than destroyed.
-And fourth, they use progressive loading - show a placeholder, then a thumbnail, then the full image only when needed.
-We're going to apply these same principles in React Native.
+I'm Miryang Jung.
+I'm a Senior Frontend Engineer at Grandeclip.
+I'm really happy to be here in Thailand.
+This is the land of Muay Thai!
+I bought a lot of boxing gear at Twins.
+I've been boxing for about a year now.
+So this trip is extra special for me.
+For this talk, I built a demo app.
+It shows each step of the fix.
+I tested it on a simulator.
+Your numbers may be different.
+But the pattern should be the same.
+OK, let's get into it.
 
 ---
 
-## Slide 5: Batch Loading & Caching (50s)
+## Slide 3: Why Build an In-App Photo Picker? (40s)
 
-First, loading. Instead of loading all 1,809 photos at once, we use expo-media-library to load just 50 at a time.
-The key insight here is that the ph-URI you get back is just an asset reference - an identifier for a photo in the iOS Photos library. It doesn't contain any pixel data. No memory is consumed until you actually try to render it.
-We paginate using the endCursor from each batch, which gives us infinite scroll naturally. As the user scrolls down, we fetch the next 50 photos.
-This is our foundation - lightweight asset references instead of heavy pixel data.
-Now we have these references, but how do we actually render them on screen?
-
----
-
-## Slide 6: Rendering - RN Image + FlashList (50s)
-
-Now, rendering. The first thing I tried was the built-in React Native Image component.
-The problem is that RN Image can't handle ph-URIs directly on iOS. You first need to call getAssetInfoAsync to resolve it to a file-URI - the actual path to the image file on disk. That's an async call for every single cell.
-As you can see in this demo, it takes an average of 3,796 milliseconds to load all images. That's almost 4 seconds of staring at blank cells.
-RAM usage is 311 megabytes, which is manageable but not great. And notice the scrolling - it's janky because every cell that appears triggers a fresh async resolution.
-Almost 4 seconds of blank cells is unacceptable. There must be a better image component.
+Why did we build our own photo picker?
+The system picker on iOS and Android works fine for simple cases.
+But it has limits.
+We needed custom album lists.
+We needed masonry layouts and different grid sizes.
+We needed multi-select with our own UI.
+The system picker can't do any of that.
+So we built our own gallery.
+And that's when the problems started.
 
 ---
 
-## Slide 7: Rendering - useImage Trap (60s)
+## Slide 4: The Problem (50s)
 
-Still on rendering. So I went looking for alternatives and found an Expo GitHub issue that recommended using the useImage hook from expo-image. It seemed like a clean, modern approach.
-But when I combined useImage with FlashList, something terrible happened. RAM shot up to 4,848 megabytes - nearly 5 gigs - and the app crashed almost immediately on scroll.
-What's going on? useImage loads full-resolution images and keeps them in memory. But FlashList reuses cells instead of destroying them. So old images never get cleaned up - they just pile up. With fast scrolling, images accumulate faster than they're released. It's essentially a memory leak.
-The lesson here: be very careful using hooks in recycled views.
-So we need a component that handles ph-URIs natively, without this problem.
-
----
-
-## Slide 8: Rendering - expo-image + FlashList (40s)
-
-The solution is straightforward - use the expo-image component directly, not through a hook.
-expo-image resolves ph-URIs natively on the platform side - no async JavaScript calls needed. It handles everything in native code, so there's no bridge overhead.
-It has built-in support for view recycling through the recyclingKey prop. When a cell is reused for a different photo, recyclingKey tells expo-image to clear the old image and load the new one correctly.
-The results are dramatic. Average load time drops to 85 milliseconds - that's 45 times faster than RN Image. RAM stays stable at 182 megabytes. And the scrolling is silky smooth.
-But we're still decoding full 12-megapixel photos for tiny thumbnail cells. Can we reduce what we actually decode?
-
----
-
-## Slide 9: Decoding - Mipmaps Concept (50s)
-
-Now, decoding. This is where mipmaps come in.
-Think about what's happening. Our original photos are 4032 by 3024 pixels - 12 megapixels each. But the grid cell on screen is only about 98 by 98 points. Even accounting for a 3x retina display, that's just 294 by 294 pixels.
-We're decoding 12 million pixels when we only need about 86 thousand. That's roughly 170 times more data than necessary. All that extra resolution is wasted - the image gets downscaled for display anyway, but only after the full photo has been decoded into memory.
-The idea is simple - instead of decoding the full 12-megapixel photo every time, we pre-generate a small JPEG thumbnail at exactly the size we need and reuse it forever. This technique is called mipmapping.
+Here is the simplest code.
+We put RN Image in a FlashList.
+We load 1,809 photos from the device.
+What happens?
+The screen is blank for over 2 seconds.
+Then RAM jumps to 2.3 gigabytes.
+After the peak, it goes back down to 311 megabytes.
+But the loading is terrible.
+Why?
+RN Image can't use ph:// URIs directly.
+It needs an async call for each photo to get the file path first.
+And each cell loads the full-size photo — 8 to 24 megapixels — just for a tiny 96 by 96 thumbnail.
+This won't work.
+How do we fix it?
 
 ---
 
-## Slide 10: Decoding - Mipmap Implementation (60s)
+## Slide 5: How Other Gallery Apps Solve This (40s)
 
-Here's how we implement mipmaps step by step.
-First, size calculation. We divide the screen width by 4 - because our grid has 4 columns - to get the layout width of each cell. Then we call PixelRatio.getPixelSizeForLayoutSize to convert logical points to physical pixels. On a 3x retina iPhone, a 98-point cell becomes 294 physical pixels. This is the key - we're generating thumbnails at exactly the resolution the screen can actually display. Not bigger, not smaller.
-The cache key includes the mipmap width, so if the grid layout ever changes - say from 4 columns to 3 - the key changes automatically and new mipmaps are generated at the correct size.
-For generation, we use expo-image-manipulator. We call manipulate, resize to the target width, render, then save as a compressed JPEG at 90% quality. The result is a tiny file - roughly 20 to 30 kilobytes instead of several megabytes.
-Each mipmap is saved to the app's document directory and indexed with MMKV - a high-performance key-value store. We process 10 photos at a time using Promise.all, and always check the cache first. If the MMKV entry exists and the file is still on disk, we skip generation entirely.
-So the first launch takes a few seconds to generate all thumbnails, but every subsequent launch loads them instantly from cache.
-
----
-
-## Slide 11: Decoding - Mipmaps Result (30s)
-
-Here are the results. RAM drops to 174 megabytes - 4% less than expo-image alone. Average load time is 57 milliseconds, 33% faster.
-But the real win is on relaunch. Since mipmaps are persisted on disk and indexed with MMKV, the gallery loads almost instantly the second time you open it. No regeneration, no async resolution - just fast file reads from local storage.
-The final piece that ties this all together is the list component itself.
+Before we write code, let's look at how other gallery apps do it.
+They show thousands of photos smoothly.
+How?
+First, they load metadata first.
+The real image data comes later.
+Second, they use small thumbnails that match the display size.
+Third, they recycle views.
+When a cell scrolls away, it gets reused for a new photo.
+Fourth, they load step by step.
+Placeholder first, then thumbnail, then full image.
+We will use these same ideas in React Native.
 
 ---
 
-## Slide 12: Scrolling - FlashList (40s)
+## Slide 6: Batch Loading & Caching (50s)
 
-Finally, scrolling. Let me explain why FlashList is essential in this pipeline.
-FlatList mounts a new component instance for every cell that scrolls into view. When it scrolls off, that instance is destroyed. With large photo libraries, this means frame drops and blank white cells during fast scrolling.
-FlashList works like a native UICollectionView on iOS. When a cell scrolls off screen, it reuses that same component for a new item. The result is buttery smooth scrolling with no blank areas. The recyclingKey prop tells expo-image that a cell now represents a different photo, so it clears the old image and loads the new one correctly.
-The combination of FlashList's recycling, expo-image's native rendering, and mipmap thumbnails is what makes this whole pipeline work together.
-Now let's see how all four approaches compare side by side.
-
----
-
-## Slide 13: Results (30s)
-
-These numbers are from a demo app I built to reproduce each step, tested on an iPhone with 1,809 photos.
-RN Image: 311 megabytes RAM, nearly 4-second load time.
-useImage: 4,848 megabytes - nearly 5 gigs - crashes immediately.
-expo-image: 182 megabytes and 85 milliseconds. A huge improvement.
-Mipmaps with expo-image: 174 megabytes and 57 milliseconds. Our final, most optimized result.
-
----
-
-## Slide 14: Results Summary (30s)
-
-Here's the summary. From the naive RN Image approach to our final mipmap solution: RAM decreased 44%, from 311 down to 174 megabytes. Load time decreased 98%, from nearly 4 seconds down to 57 milliseconds.
-The biggest single improvement came from switching to expo-image. Mipmaps added the final incremental gain on top, plus the huge benefit of instant relaunch.
+First step: loading.
+We don't load all 1,809 photos at once.
+We use expo-media-library to load 50 at a time.
+Here's the key point.
+The ph:// URI is just a reference.
+It's like an ID for a photo in the iOS Photos library.
+It has no pixel data.
+No memory is used until we try to show it.
+We use endCursor to load the next page.
+This gives us infinite scroll.
+This is our base.
+Light references, not heavy image data.
+Now we have the references.
+But how do we show them on screen?
 
 ---
 
-## Slide 15: Lessons Learned (50s)
+## Slide 7: Rendering - RN Image + FlashList (50s)
 
-Let me wrap up with five lessons.
-First, don't load what you don't display. Batch loading with ph-asset references keeps your initial memory footprint near zero.
-Second, the right image component matters more than anything else. Choose one that resolves asset URIs natively on the platform side, not through the JavaScript bridge.
-Third, match your pixel budget to your display size. Calculate your actual pixel needs with PixelRatio, generate mipmaps at that exact size, and cache them permanently. There's no reason to decode 12 megapixels for a thumbnail.
-Fourth, recycle, don't recreate. FlashList gives you smooth scrolling with no frame drops and no blank cells, even with thousands of photos.
-And fifth - beware of hooks in recycled views. useImage keeps loaded images in memory, and since FlashList reuses cells instead of destroying them, old images pile up until the app crashes.
+Next: rendering.
+I first tried the built-in RN Image.
+The problem?
+RN Image can't use ph:// URIs on iOS.
+You need to call getAssetInfoAsync first.
+This turns the ph:// URI into a file path.
+That's an async call for every cell.
+Look at the demo.
+The average load time is 3,796 milliseconds.
+That's almost 4 seconds of blank cells.
+RAM is 311 megabytes.
+Not too bad.
+But the scrolling is not smooth.
+4 seconds of blank cells is not good enough.
+We need a better image component.
 
 ---
 
-## Slide 16: Thank You (20s)
+## Slide 8: Rendering - useImage Trap (60s)
 
-Thank you so much! Unfortunately we're out of time for questions on stage, but please come find me afterwards - I'd love to chat about React Native performance or anything else. Thank you!
+Still on rendering.
+I looked for other options.
+I found an Expo GitHub issue.
+It said to use the useImage hook from expo-image.
+It looked like a good idea.
+But when I used useImage with FlashList, it was a disaster.
+RAM went up to 4,848 megabytes.
+That's almost 5 gigs.
+The app crashed right away.
+Why?
+useImage loads full-size images and keeps them in memory.
+But FlashList reuses cells.
+It doesn't destroy them.
+So old images stay in memory.
+They keep piling up.
+It's a memory leak.
+The lesson: be careful with hooks in recycled views.
+We need a component that handles ph:// URIs on the native side.
+
+---
+
+## Slide 9: Rendering - expo-image + FlashList (40s)
+
+The answer is simple.
+Use the expo-image component directly.
+Not through a hook.
+expo-image handles ph:// URIs on the native side.
+No async JavaScript calls.
+It also supports view recycling with the recyclingKey prop.
+When a cell is reused, recyclingKey tells expo-image to clear the old image and load the new one.
+The results are great.
+Load time: 85 milliseconds.
+That's 45 times faster than RN Image.
+RAM: 182 megabytes.
+Smooth scrolling.
+But we still decode full-size photos — up to 24 megapixels — for small thumbnails.
+Can we do better?
+
+---
+
+## Slide 10: Decoding - Mipmaps Concept (50s)
+
+Now, decoding.
+This is where mipmaps help.
+Think about it.
+Our photos are 8 to 24 megapixels.
+But the grid cell is only 98 by 98 points.
+On a 3x retina screen, that's 294 by 294 pixels.
+We decode up to 24 million pixels.
+But we only need about 86 thousand.
+That's about 190 times more data than we need.
+All that extra detail is wasted.
+The image gets shrunk for display anyway.
+But the full photo is already in memory.
+The idea is simple.
+Make a small JPEG thumbnail ahead of time.
+The exact size we need.
+Then reuse it forever.
+This is called mipmapping.
+
+---
+
+## Slide 11: Decoding - Mipmap Size Calculation (40s)
+
+First step: figure out the right size.
+We divide the screen width by 4.
+That's our grid cell width.
+Then we use PixelRatio to turn points into pixels.
+This is important.
+Different devices have different pixel density.
+iPhone Pro is 3x.
+So 98 points becomes 294 pixels.
+iPhone SE is 2x.
+So 98 points becomes 196 pixels.
+We make thumbnails at the exact size each device needs.
+Not bigger.
+Not smaller.
+The cache key has the mipmap width in it.
+If the grid changes — say from 4 columns to 3 — the key changes too.
+New thumbnails are made at the right size.
+
+---
+
+## Slide 12: Decoding - Mipmap Generation & Caching (50s)
+
+Now, the pipeline.
+We use expo-image-manipulator to resize each photo.
+We save it as a JPEG at 90 percent quality.
+The result is tiny.
+About 20 to 30 kilobytes.
+The original is 1.5 to 4 megabytes.
+Each mipmap is saved to the app's folder.
+We use MMKV to track them.
+MMKV is a fast key-value store.
+We always check the cache first.
+If the file is there, we skip it.
+No need to make it again.
+We process 10 photos at a time with Promise.all.
+For 1,809 photos, the total cache is only about 40 megabytes on disk.
+First launch takes a few seconds.
+But after that, everything loads from cache right away.
+
+---
+
+## Slide 13: Decoding - Mipmaps Result (30s)
+
+Here are the results.
+RAM: 174 megabytes.
+That's 4% less than expo-image alone.
+Load time: 57 milliseconds.
+33% faster.
+But the real win is the second launch.
+Mipmaps are saved on disk.
+MMKV tracks them.
+So the gallery loads almost right away next time.
+No more waiting.
+The last piece is the list component.
+
+---
+
+## Slide 14: Scrolling - FlashList (40s)
+
+Last part: scrolling.
+FlatList creates a new component for every cell.
+When a cell scrolls away, it's destroyed.
+With many photos, this means dropped frames and blank cells.
+FlashList is different.
+It works like UICollectionView on iOS.
+When a cell scrolls away, it reuses that cell for the next item.
+The scrolling is smooth.
+No blank areas.
+The recyclingKey prop tells expo-image that the cell now shows a different photo.
+It clears the old image and loads the new one.
+FlashList plus expo-image plus mipmaps.
+That's the full picture.
+Let's compare all four methods.
+
+---
+
+## Slide 15: Results (30s)
+
+These numbers are from my demo app.
+Tested on an iPhone simulator with 1,809 photos.
+RN Image: 311 megabytes.
+Almost 4 seconds to load.
+useImage: 4,848 megabytes.
+App crashes.
+expo-image: 182 megabytes.
+85 milliseconds.
+Mipmaps plus expo-image: 174 megabytes.
+57 milliseconds.
+The best result.
+
+---
+
+## Slide 16: Results Summary (30s)
+
+Here is the summary.
+From RN Image to mipmaps: RAM went down 44%.
+From 311 to 174 megabytes.
+Load time went down 98%.
+From almost 4 seconds to 57 milliseconds.
+The biggest win was switching to expo-image.
+Mipmaps added a smaller gain on top.
+Plus, the second launch is instant.
+
+---
+
+## Slide 17: Lessons Learned (50s)
+
+Let me finish with five lessons.
+One. Don't load what you don't show.
+Use batch loading with ph:// references.
+Keep memory low from the start.
+Two. The right image component is the most important choice.
+Pick one that handles asset URIs on the native side.
+Not through the JavaScript bridge.
+Three. Match your pixels to your screen size.
+Use PixelRatio.
+Make mipmaps at the exact size.
+Cache them on disk.
+Don't decode 24 megapixels for a thumbnail.
+Four. Recycle, don't recreate.
+FlashList gives smooth scrolling with no blank cells.
+Even with thousands of photos.
+Five. Be careful with hooks in recycled views.
+useImage keeps images in memory.
+FlashList reuses cells, it doesn't destroy them.
+So old images pile up and the app crashes.
+
+---
+
+## Slide 18: Thank You (20s)
+
+Thank you!
+I can't take questions on stage right now.
+But please come talk to me after.
+I'm happy to chat about React Native or anything else.
+Thank you!
