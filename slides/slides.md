@@ -238,7 +238,7 @@ So we built our own gallery. And that's when the problems started.
 <div class="card-bad">
 
 - RAM peaks at <span class="metric-bad">~2.3GB</span>
-- <span class="metric-bad">Blank cells</span> for ~2.5 seconds
+- <span class="metric-bad">Blank cells</span> for over 2 seconds
 - Every cell loads full-resolution image
 - Async URI resolution per cell
 
@@ -255,7 +255,7 @@ Then RAM jumps to 2.3 gigabytes.
 After the peak, it goes back down to 311 megabytes. But the loading is terrible.
 Why? RN Image can't use ph:// URIs directly.
 It needs an async call for each photo to get the file path first.
-And each cell loads the full-size photo — 8 to 24 megapixels — just for a tiny 96 by 96 thumbnail.
+And each cell loads the full-size photo — 8 to 24 megapixels — just for a tiny thumbnail.
 This won't work. How do we fix it?
 
 (히어 이즈 더 **심플리스트** 코드.
@@ -265,10 +265,10 @@ This won't work. How do we fix it?
 애프터 더 피크, 잇 고즈 백 다운 투 쓰리헌드레드일레븐 메가바이츠. 벗 더 로딩 이즈 **테리블**.
 와이? 아알엔 이미지 캔트 유즈 피에이치 유아아이즈 디**렉틀리**.
 잇 니즈 언 어**싱크** 콜 포 이치 포토 투 겟 더 파일 패쓰 퍼스트.
-앤드 이치 셀 로즈 더 풀사이즈 포토 — 에잇 투 트웬티포 **메가픽셀즈** — 저스트 포 어 타이니 나인티식스 바이 나인티식스 **썸네일**.
+앤드 이치 셀 로즈 더 풀사이즈 포토 — 에잇 투 트웬티포 **메가픽셀즈** — 저스트 포 어 타이니 **썸네일**.
 디스 원트 워크. 하우 두 위 **픽스** 잇?)
 
-가장 간단한 코드입니다. FlashList에 RN Image를 넣고 기기에서 1,809장의 사진을 로드합니다. 결과는? 화면이 2초 넘게 비어있습니다. RAM이 2.3기가바이트까지 올라갑니다. 피크 후 311메가바이트로 내려오지만 로딩 경험은 최악입니다. 왜? RN Image는 ph:// URI를 직접 쓸 수 없습니다. 각 사진마다 파일 경로를 얻기 위한 비동기 호출이 필요합니다. 그리고 각 셀이 8~24메가픽셀의 풀사이즈 사진을 96x96 썸네일을 위해 로드합니다. 이건 안 됩니다. 어떻게 고칠까요?
+가장 간단한 코드입니다. FlashList에 RN Image를 넣고 기기에서 1,809장의 사진을 로드합니다. 결과는? 화면이 2초 넘게 비어있습니다. RAM이 2.3기가바이트까지 올라갑니다. 피크 후 311메가바이트로 내려오지만 로딩 경험은 최악입니다. 왜? RN Image는 ph:// URI를 직접 쓸 수 없습니다. 각 사진마다 파일 경로를 얻기 위한 비동기 호출이 필요합니다. 그리고 각 셀이 8~24메가픽셀의 풀사이즈 사진을 작은 썸네일을 위해 로드합니다. 이건 안 됩니다. 어떻게 고칠까요?
 -->
 
 ---
@@ -319,7 +319,7 @@ Placeholder → Thumbnail → Full resolution
 <!--
 Before we write code, let's look at how other gallery apps do it.
 They show thousands of photos smoothly. How?
-First, they load metadata first. The real image data comes later.
+First, they load metadata only. The real image data comes later.
 Second, they use small thumbnails that match the display size.
 Third, they recycle views. When a cell scrolls away, it gets reused for a new photo.
 Fourth, they load step by step. Placeholder first, then thumbnail, then full image.
@@ -327,13 +327,13 @@ We will use these same ideas in React Native.
 
 (비포 위 라이트 코드, 렛츠 룩 앳 하우 아더 갤러리 앱스 두 잇.
 데이 쇼 **타우전즈** 오브 포토즈 **스무들리**. 하우?
-퍼스트, 데이 로드 **메타데이터** 퍼스트. 더 리얼 이미지 데이터 컴즈 레이터.
+퍼스트, 데이 로드 **메타데이터** 온리. 더 리얼 이미지 데이터 컴즈 레이터.
 세컨드, 데이 유즈 스몰 **썸네일즈** 댓 매치 더 디스플레이 사이즈.
 써드, 데이 **리사이클** 뷰즈. 웬 어 셀 스크롤즈 어웨이, 잇 겟츠 리유즈드 포 어 뉴 포토.
 포쓰, 데이 로드 스텝 바이 스텝. 플레이스홀더 퍼스트, 덴 썸네일, 덴 풀 이미지.
 위 윌 유즈 디즈 세임 아이**디어즈** 인 리액트 네이티브.)
 
-코드를 작성하기 전에, 다른 갤러리 앱들은 어떻게 하는지 살펴봅시다. 수천 장의 사진을 매끄럽게 보여줍니다. 어떻게? 첫째, 메타데이터를 먼저 로드합니다. 실제 이미지 데이터는 나중에. 둘째, 디스플레이 크기에 맞는 작은 썸네일을 사용합니다. 셋째, 뷰를 재활용합니다. 넷째, 단계별로 로드합니다. 우리도 같은 아이디어를 React Native에 적용할 겁니다.
+코드를 작성하기 전에, 다른 갤러리 앱들은 어떻게 하는지 살펴봅시다. 수천 장의 사진을 매끄럽게 보여줍니다. 어떻게? 첫째, 메타데이터만 먼저 로드합니다. 실제 이미지 데이터는 나중에. 둘째, 디스플레이 크기에 맞는 작은 썸네일을 사용합니다. 셋째, 뷰를 재활용합니다. 넷째, 단계별로 로드합니다. 우리도 같은 아이디어를 React Native에 적용할 겁니다.
 -->
 
 ---
@@ -590,7 +590,7 @@ storage.set(cacheKey, destFile.uri);
 - Full image: **8–24 MP** (various sizes)
 - Grid cell: **~98 x 98** points
 - Mipmap: **~294 x 294** px (3x retina)
-- **~190x fewer pixels** to decode on avg
+- **up to ~280x fewer pixels** to decode
 - Cached on disk with MMKV index
 
 </div>
@@ -604,7 +604,7 @@ Think about it. Our photos are 8 to 24 megapixels.
 But the grid cell is only 98 by 98 points.
 On a 3x retina screen, that's 294 by 294 pixels.
 We decode up to 24 million pixels. But we only need about 86 thousand.
-That's about 190 times more data than we need.
+That's up to 280 times more data than we need.
 All that extra detail is wasted.
 The image gets shrunk for display anyway. But the full photo is already in memory.
 The idea is simple. Make a small JPEG thumbnail ahead of time.
@@ -615,13 +615,13 @@ The exact size we need. Then reuse it forever. This is called mipmapping.
 벗 더 그리드 셀 이즈 온리 나인티에잇 바이 나인티에잇 포인츠.
 온 어 쓰리엑스 **레티나** 스크린, 댓츠 투헌드레드나인티포 바이 투헌드레드나인티포 픽셀즈.
 위 디코드 업 투 트웬티포 **밀리언** 픽셀즈. 벗 위 온리 니드 어바웃 에이티식스 **타우전드**.
-댓츠 어바웃 원헌드레드나인티 타임즈 모어 데이터 댄 위 니드.
+댓츠 업 투 투헌드레드에이티 타임즈 모어 데이터 댄 위 니드.
 올 댓 엑스트라 디테일 이즈 **웨이스티드**.
 더 이미지 겟츠 슈렁크 포 디스플레이 에니웨이. 벗 더 풀 포토 이즈 올레디 인 메모리.
 디 아이디어 이즈 **심플**. 메이크 어 스몰 제이펙 썸네일 어**헤드** 오브 타임.
 디 이잭트 사이즈 위 니드. 덴 리유즈 잇 포에버. 디스 이즈 콜드 **밉매핑**.)
 
-이제 디코딩입니다. 밉맵이 도움이 됩니다. 생각해보세요. 사진은 8~24메가픽셀입니다. 하지만 그리드 셀은 98x98 포인트뿐입니다. 3x 레티나 화면에서 294x294 픽셀입니다. 최대 2,400만 픽셀을 디코딩합니다. 하지만 약 8만 6천 픽셀만 필요합니다. 약 190배 많은 데이터입니다. 여분의 디테일은 낭비입니다. 어차피 화면에 맞게 줄어듭니다. 아이디어는 간단합니다. 미리 작은 JPEG 썸네일을 만듭니다. 필요한 정확한 크기로. 그리고 영원히 재사용합니다. 이것이 밉매핑입니다.
+이제 디코딩입니다. 밉맵이 도움이 됩니다. 생각해보세요. 사진은 8~24메가픽셀입니다. 하지만 그리드 셀은 98x98 포인트뿐입니다. 3x 레티나 화면에서 294x294 픽셀입니다. 최대 2,400만 픽셀을 디코딩합니다. 하지만 약 8만 6천 픽셀만 필요합니다. 최대 280배나 많은 데이터입니다. 여분의 디테일은 낭비입니다. 어차피 화면에 맞게 줄어듭니다. 하지만 풀사이즈 사진은 이미 메모리에 있습니다. 아이디어는 간단합니다. 미리 작은 JPEG 썸네일을 만듭니다. 필요한 정확한 크기로. 그리고 영원히 재사용합니다. 이것이 밉매핑입니다.
 -->
 
 ---
@@ -743,7 +743,7 @@ storage.set(cacheKey, destFile.uri);
 
 **File size savings**
 
-- Original: **1.5–4.1 MB** per photo
+- Original: **1.5–4 MB** per photo
 - Mipmap: **~20–30 KB** per photo
 - 1,809 photos → **~40 MB** disk cache
 
@@ -1100,14 +1100,14 @@ Blog: **miryang.dev** · LinkedIn: **MiryangJung**
 
 <!--
 Thank you!
-I can't take questions on stage right now.
-But please come talk to me after.
-I'm happy to chat about React Native or anything else. Thank you!
+Unfortunately, we don't have time for questions on stage.
+But please send me a message on LinkedIn. I'd love to chat!
+Thank you!
 
 (땡큐!
-아이 캔트 테이크 퀘스천즈 온 스테이지 라이트 나우.
-벗 플리즈 컴 톡 투 미 애프터.
-아임 해피 투 챗 어바웃 리액트 네이티브 오어 에니띵 엘스. 땡큐!)
+언포추너틀리, 위 돈트 해브 타임 포 퀘스천즈 온 스테이지.
+벗 플리즈 센드 미 어 메시지 온 **링크드인**. 아이드 러브 투 챗!
+땡큐!)
 
-감사합니다! 지금 무대에서 질문은 받을 수 없습니다. 하지만 끝나고 와서 이야기해주세요. React Native든 뭐든 편하게 대화하고 싶습니다. 감사합니다!
+감사합니다! 아쉽게도 무대에서 질문 시간이 없습니다. 링크드인으로 메시지 보내주세요. 편하게 대화하고 싶습니다! 감사합니다!
 -->

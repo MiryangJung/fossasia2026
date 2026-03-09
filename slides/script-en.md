@@ -63,7 +63,7 @@ But the loading is terrible.
 Why?
 RN Image can't use ph:// URIs directly.
 It needs an async call for each photo to get the file path first.
-And each cell loads the full-size photo — 8 to 24 megapixels — just for a tiny 96 by 96 thumbnail.
+And each cell loads the full-size photo — 8 to 24 megapixels — just for a tiny thumbnail.
 This won't work.
 How do we fix it?
 
@@ -74,7 +74,7 @@ How do we fix it?
 Before we write code, let's look at how other gallery apps do it.
 They show thousands of photos smoothly.
 How?
-First, they load metadata first.
+First, they load metadata only.
 The real image data comes later.
 Second, they use small thumbnails that match the display size.
 Third, they recycle views.
@@ -176,7 +176,7 @@ But the grid cell is only 98 by 98 points.
 On a 3x retina screen, that's 294 by 294 pixels.
 We decode up to 24 million pixels.
 But we only need about 86 thousand.
-That's about 190 times more data than we need.
+That's up to 280 times more data than we need.
 All that extra detail is wasted.
 The image gets shrunk for display anyway.
 But the full photo is already in memory.
@@ -321,7 +321,6 @@ So old images pile up and the app crashes.
 ## Slide 18: Thank You (20s)
 
 Thank you!
-I can't take questions on stage right now.
-But please come talk to me after.
-I'm happy to chat about React Native or anything else.
+Unfortunately, we don't have time for questions on stage.
+But please send me a message on LinkedIn. I'd love to chat!
 Thank you!
