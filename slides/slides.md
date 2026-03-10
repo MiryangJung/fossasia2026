@@ -500,8 +500,9 @@ function Item({ item }) {
 
 <div class="card-bad mt-4">
 
-- Loads full-res images, **keeps them in memory**
-- FlashList recycles → **old images never freed**
+- Hook manages image as **JS-side state**
+- FlashList recycles → **component never unmounts**
+- Old image refs **never cleaned up** → RAM piles up
 - RAM: <span class="metric-bad">~4,848MB</span> → crash
 
 </div>
@@ -516,41 +517,43 @@ function Item({ item }) {
 
 <!--
 Still on rendering. I looked for other options.<br>
-I found an Expo GitHub issue.<br>
-It said to use the useImage hook from expo-image. It looked like a good idea.<br>
+I found an Expo GitHub issue about the memory problem.<br>
+Someone suggested using the useImage hook from expo-image. It sounded promising.<br>
 But when I used useImage with FlashList, it was a disaster.<br>
 RAM went up to **4,848** megabytes. That's almost **5** gigs.<br>
 The app crashed right away.<br>
-Why? useImage loads full-size images and keeps them in memory.<br>
-But FlashList reuses cells. It doesn't destroy them.<br>
-So old images stay in memory. They keep piling up. It's a memory leak.<br>
+Why? useImage is a React hook. It manages image loading as component state.<br>
+But FlashList recycles cells. It doesn't unmount them.<br>
+So the hook never cleans up. Old image references stay in memory.<br>
+They keep piling up. It's a memory leak.<br>
 The lesson: be careful with hooks in recycled views.<br>
-We need a component that handles ph:// URIs on the native side.<br>
+We need a component that handles images on the native side, not through JS state.<br>
 
 (스틸 온 렌더링. 아이 룩트 포 아더 **옵션즈**.<br>
-아이 파운드 언 엑스포 깃헙 이슈.<br>
-잇 세드 투 유즈 더 유즈이미지 훅 프롬 엑스포-이미지. 잇 룩트 라이크 어 굿 아이디어.<br>
+아이 파운드 언 엑스포 깃헙 이슈 어바웃 더 메모리 프라블럼.<br>
+**썸원** 서제스티드 유징 더 유즈이미지 훅 프롬 엑스포-이미지. 잇 **사운디드** 프라미싱.<br>
 벗 웬 아이 유즈드 유즈이미지 위드 플래시리스트, 잇 워즈 어 디**재스터**.<br>
 램 웬트 업 투 **포타우전드에잇헌드레드포티에잇** 메가바이츠. 댓츠 올모스트 **파이브** 기그즈.<br>
 디 앱 크래시드 라이트 어**웨이**.<br>
-와이? 유즈이미지 로즈 풀사이즈 이미지즈 앤드 킵스 뎀 인 **메모리**.<br>
-벗 플래시리스트 리유지즈 셀즈. 잇 더전트 디스트로이 뎀.<br>
-쏘 올드 이미지즈 스테이 인 메모리. 데이 킵 **파일링** 업. 잇츠 어 메모리 **리크**.<br>
+와이? 유즈이미지 이즈 어 리액트 훅. 잇 매니지즈 이미지 로딩 애즈 컴포넌트 **스테이트**.<br>
+벗 플래시리스트 리사이클즈 셀즈. 잇 더전트 **언마운트** 뎀.<br>
+쏘 더 훅 네버 클린즈 업. 올드 이미지 레퍼런시즈 스테이 인 메모리.<br>
+데이 킵 **파일링** 업. 잇츠 어 메모리 **리크**.<br>
 더 레슨: 비 **케어풀** 위드 훅스 인 리사이클드 뷰즈.<br>
-위 니드 어 컴포넌트 댓 핸들즈 피에이치 유아아이즈 온 더 **네이티브** 사이드.)<br>
+위 니드 어 컴포넌트 댓 핸들즈 이미지즈 온 더 **네이티브** 사이드, 낫 쓰루 제이에스 스테이트.)<br>
 
 아직 렌더링입니다.<br>
 다른 옵션을 찾았습니다.<br>
-Expo GitHub 이슈에서 useImage 훅을 쓰라고 했습니다.<br>
+Expo GitHub 이슈에서 메모리 문제에 대해 논의 중이었고, useImage 훅을 추천했습니다.<br>
 좋은 방법처럼 보였습니다.<br>
 하지만 useImage와 FlashList를 함께 쓰니 재앙이었습니다.<br>
 RAM이 **4,848**메가바이트까지 올랐습니다. 거의 **5**기가.<br>
 앱이 바로 크래시됩니다.<br>
-왜? useImage는 풀사이즈 이미지를 로드하고 메모리에 유지합니다.<br>
-하지만 FlashList는 셀을 재사용하지 파괴하지 않습니다.<br>
-이전 이미지가 메모리에 남아서 계속 쌓입니다. 메모리 누수입니다.<br>
+왜? useImage는 React 훅입니다. 이미지 로딩을 컴포넌트 상태로 관리합니다.<br>
+하지만 FlashList는 셀을 재사용하지 언마운트하지 않습니다.<br>
+훅이 정리되지 않습니다. 이전 이미지 참조가 메모리에 남아 계속 쌓입니다. 메모리 누수입니다.<br>
 교훈: 재활용되는 뷰에서 훅 사용을 주의하세요.<br>
-네이티브에서 ph:// URI를 처리하는 컴포넌트가 필요합니다.<br>
+JS 상태가 아닌 네이티브에서 이미지를 처리하는 컴포넌트가 필요합니다.<br>
 -->
 
 ---
@@ -570,8 +573,9 @@ RAM이 **4,848**메가바이트까지 올랐습니다. 거의 **5**기가.<br>
 
 <div class="card-good mt-4">
 
-- Native **ph:// resolution**
-- Built-in **view recycling**
+- Native **ph:// resolution** — no async JS calls
+- Requests **display-sized** image from iOS, not full-res
+- Built-in **view recycling** with `recyclingKey`
 - Avg load: <span class="metric-good">~85ms</span>
 - RAM: <span class="metric-good">~182MB</span>
 
@@ -588,34 +592,42 @@ RAM이 **4,848**메가바이트까지 올랐습니다. 거의 **5**기가.<br>
 <!--
 The answer is simple. Use the expo-image component directly. Not through a hook.<br>
 expo-image handles ph:// URIs on the native side. No async JavaScript calls.<br>
+And here's the key — it doesn't load the full **24** megapixel image.<br>
+It uses iOS PHImageManager with a target size matching the view.<br>
+So it only requests the pixels it actually needs for display.<br>
 It also supports view recycling with the recyclingKey prop.<br>
 When a cell is reused, recyclingKey tells expo-image to clear the old image and load the new one.<br>
 The results are great.<br>
 Load time: **85** milliseconds. That's **45** times faster than RN Image.<br>
 RAM: **182** megabytes. Smooth scrolling.<br>
-But we still decode full-size photos — up to **24** megapixels — for small thumbnails.<br>
-Can we do better?<br>
+But every time a cell appears, iOS still has to fetch and resize the photo from the library.<br>
+Can we skip that step entirely?<br>
 
 (디 앤서 이즈 **심플**. 유즈 디 엑스포-이미지 컴포넌트 디렉틀리. 낫 쓰루 어 훅.<br>
 엑스포-이미지 핸들즈 피에이치 유아아이즈 온 더 네이티브 사이드. 노 어싱크 자바스크립트 콜즈.<br>
+앤드 히어즈 더 키 — 잇 더전트 로드 더 풀 **트웬티포** 메가픽셀 이미지.<br>
+잇 유지즈 아이오에스 피에이치이미지매니저 위드 어 타겟 사이즈 매칭 더 뷰.<br>
+쏘 잇 온리 리퀘스츠 더 픽셀즈 잇 **액추얼리** 니즈 포 디스플레이.<br>
 잇 올소 서포츠 뷰 리사이클링 위드 더 리사이클링키 프랍.<br>
 웬 어 셀 이즈 리유즈드, 리사이클링키 텔즈 엑스포-이미지 투 클리어 디 올드 이미지 앤드 로드 더 뉴 원.<br>
 더 리절츠 아 **그레이트**.<br>
 로드 타임: **에이티파이브** 밀리세컨즈. 댓츠 **포티파이브** 타임즈 **패스터** 댄 아알엔 이미지.<br>
 램: **원에이티투** 메가바이츠. 스무드 스크롤링.<br>
-벗 위 스틸 디코드 풀사이즈 포토즈 — 업 투 **트웬티포** **메가픽셀즈** — 포 스몰 썸네일즈.<br>
-캔 위 두 **베터**?)<br>
+벗 에브리 타임 어 셀 어피어즈, 아이오에스 스틸 해즈 투 페치 앤드 리사이즈 더 포토 프롬 더 라이브러리.<br>
+캔 위 스킵 댓 스텝 인**타이얼리**?)<br>
 
 답은 간단합니다. expo-image 컴포넌트를 직접 사용하세요. 훅을 통하지 말고.<br>
-expo-image는 네이티브에서 ph:// URI를 처리합니다.<br>
-비동기 JavaScript 호출이 없습니다.<br>
+expo-image는 네이티브에서 ph:// URI를 처리합니다. 비동기 JavaScript 호출이 없습니다.<br>
+핵심은 — 풀사이즈 **24**메가픽셀 이미지를 로드하지 않는다는 것입니다.<br>
+iOS PHImageManager를 사용하여 뷰 크기에 맞는 이미지만 요청합니다.<br>
+디스플레이에 실제로 필요한 픽셀만 가져옵니다.<br>
 recyclingKey 프랍으로 뷰 리사이클링도 지원합니다.<br>
 셀이 재사용되면 recyclingKey가 이전 이미지를 클리어하고 새 이미지를 로드하도록 합니다.<br>
 결과가 좋습니다.<br>
 로드 시간: **85**밀리초. RN Image보다 **45**배 빠릅니다.<br>
 RAM: **182**메가바이트. 스크롤도 매끄럽습니다.<br>
-하지만 여전히 작은 썸네일을 위해 최대 **24**메가픽셀의 풀사이즈 사진을 디코딩합니다.<br>
-더 개선할 수 있을까요?<br>
+하지만 새 셀이 나타날 때마다 iOS가 여전히 포토 라이브러리에서 사진을 가져와 리사이즈해야 합니다.<br>
+이 단계를 완전히 건너뛸 수 있을까요?<br>
 -->
 
 ---
@@ -648,11 +660,11 @@ storage.set(cacheKey, destFile.uri);
 
 <div class="card">
 
-- Full image: **8–24 MP** (various sizes)
-- Grid cell: **~98 x 98** points
-- Mipmap: **~294 x 294** px (3x retina)
-- **up to ~280x fewer pixels** to decode
-- Cached on disk with MMKV index
+- expo-image asks iOS to resize **every time**
+- Mipmap: pre-generated **~294 x 294** px JPEG
+- **~20–30 KB** — loads faster than PHImageManager
+- **Disk-cached** → instant on relaunch
+- Easy to **reuse** across any screen in the app
 
 </div>
 
@@ -660,40 +672,35 @@ storage.set(cacheKey, destFile.uri);
 </div>
 
 <!--
-Now, decoding. This is where mipmaps help.<br>
-Think about it. Our photos are **8** to **24** megapixels.<br>
-But the grid cell is only **98** by **98** points.<br>
-On a **3x** retina screen, that's **294** by **294** pixels.<br>
-We decode up to **24** million pixels. But we only need about **86** thousand.<br>
-That's up to **280** times more data than we need.<br>
-All that extra detail is wasted.<br>
-The image gets shrunk for display anyway. But the full photo is already in memory.<br>
-The idea is simple. Make a small JPEG thumbnail ahead of time.<br>
-The exact size we need. Then reuse it forever. This is called mipmapping.<br>
+Now, decoding. This is where mipmaps take it further.<br>
+expo-image already asks iOS for a smaller version. That's great.<br>
+But every time a new cell appears, iOS still has to find the photo in the library, resize it, and return it.<br>
+What if we pre-generate small JPEG thumbnails and cache them on disk?<br>
+That's mipmapping. One-time cost, then reuse forever.<br>
+Our grid cell is **98** by **98** points. On a **3x** retina screen, that's **294** by **294** pixels.<br>
+We make a small JPEG at exactly that size. About **20** to **30** kilobytes.<br>
+On second launch, the thumbnails are already on disk. No waiting for PHImageManager.<br>
+And these cached images are easy to reuse anywhere in the app — different screens, different components.<br>
 
-(나우, **디코딩**. 디스 이즈 웨어 **밉맵스** 헬프.<br>
-띵크 어바웃 잇. 아워 포토즈 아 **에잇** 투 **트웬티포** 메가픽셀즈.<br>
-벗 더 그리드 셀 이즈 온리 **나인티에잇** 바이 **나인티에잇** 포인츠.<br>
-온 어 **쓰리엑스** **레티나** 스크린, 댓츠 **투헌드레드나인티포** 바이 **투헌드레드나인티포** 픽셀즈.<br>
-위 디코드 업 투 **트웬티포** **밀리언** 픽셀즈. 벗 위 온리 니드 어바웃 **에이티식스** **타우전드**.<br>
-댓츠 업 투 **투헌드레드에이티** 타임즈 모어 데이터 댄 위 니드.<br>
-올 댓 엑스트라 디테일 이즈 **웨이스티드**.<br>
-더 이미지 겟츠 슈렁크 포 디스플레이 에니웨이. 벗 더 풀 포토 이즈 올레디 인 메모리.<br>
-디 아이디어 이즈 **심플**. 메이크 어 스몰 제이펙 썸네일 어**헤드** 오브 타임.<br>
-디 이잭트 사이즈 위 니드. 덴 리유즈 잇 포에버. 디스 이즈 콜드 **밉매핑**.)<br>
+(나우, **디코딩**. 디스 이즈 웨어 밉맵스 테이크 잇 **퍼더**.<br>
+엑스포-이미지 올레디 애스크스 아이오에스 포 어 스몰러 **버전**. 댓츠 그레이트.<br>
+벗 에브리 타임 어 뉴 셀 어피어즈, 아이오에스 스틸 해즈 투 파인드 더 포토 인 더 라이브러리, 리사이즈 잇, 앤드 리턴 잇.<br>
+왓 이프 위 프리-**제너레이트** 스몰 제이펙 썸네일즈 앤드 캐시 뎀 온 디스크?<br>
+댓츠 **밉매핑**. 원-타임 코스트, 덴 리유즈 포에버.<br>
+아워 그리드 셀 이즈 **나인티에잇** 바이 **나인티에잇** 포인츠. 온 어 **쓰리엑스** 레티나 스크린, 댓츠 **투헌드레드나인티포** 바이 **투헌드레드나인티포** 픽셀즈.<br>
+위 메이크 어 스몰 제이펙 앳 이잭틀리 댓 사이즈. 어바웃 **트웬티** 투 **써티** 킬로바이츠.<br>
+온 세컨드 론치, 더 썸네일즈 아 올레디 온 디스크. 노 웨이팅 포 피에이치이미지매니저.<br>
+앤드 디즈 캐시드 이미지즈 아 이지 투 리유즈 **애니웨어** 인 디 앱 — 디퍼런트 스크린즈, 디퍼런트 컴포넌츠.)<br>
 
-이제 디코딩입니다. 밉맵이 도움이 됩니다.<br>
-생각해보세요. 사진은 **8**~**24**메가픽셀입니다.<br>
-하지만 그리드 셀은 **98**x**98** 포인트뿐입니다.<br>
-**3x** 레티나 화면에서 **294**x**294** 픽셀입니다.<br>
-최대 **2,400**만 픽셀을 디코딩합니다.<br>
-하지만 약 **8**만 **6**천 픽셀만 필요합니다.<br>
-최대 **280**배나 많은 데이터입니다.<br>
-여분의 디테일은 낭비입니다.<br>
-어차피 화면에 맞게 줄어듭니다. 하지만 풀사이즈 사진은 이미 메모리에 있습니다.<br>
-아이디어는 간단합니다. 미리 작은 JPEG 썸네일을 만듭니다.<br>
-필요한 정확한 크기로. 그리고 영원히 재사용합니다.<br>
-이것이 밉매핑입니다.<br>
+이제 디코딩입니다. 밉맵으로 한 단계 더 나아갑니다.<br>
+expo-image는 이미 iOS에 작은 버전을 요청합니다. 좋습니다.<br>
+하지만 새 셀이 나타날 때마다 iOS가 포토 라이브러리에서 사진을 찾아 리사이즈하고 반환해야 합니다.<br>
+작은 JPEG 썸네일을 미리 생성하고 디스크에 캐싱하면 어떨까요?<br>
+이것이 밉매핑입니다. 한 번만 생성하고 영원히 재사용합니다.<br>
+그리드 셀은 **98**x**98** 포인트입니다. **3x** 레티나 화면에서 **294**x**294** 픽셀입니다.<br>
+정확히 그 크기로 작은 JPEG를 만듭니다. 약 **20~30**킬로바이트입니다.<br>
+두 번째 실행에서는 썸네일이 이미 디스크에 있습니다. PHImageManager를 기다릴 필요가 없습니다.<br>
+그리고 이 캐싱된 이미지는 앱 어디서든 쉽게 재사용할 수 있습니다 — 다른 화면, 다른 컴포넌트에서.<br>
 -->
 
 ---
@@ -895,8 +902,9 @@ Promise.all로 한 번에 **10**장씩 처리합니다.<br>
 - RAM: <span class="metric-good">~174MB</span>
 - Avg load: <span class="metric-good">~57ms</span>
 - **4% less RAM** than expo-image alone
-- **33% faster** load time
-- Disk-cached → instant on relaunch
+- **33% faster** load time — skip PHImageManager
+- Disk-cached → **instant on relaunch**
+- Reusable across any screen
 
 </div>
 
@@ -1136,7 +1144,7 @@ RN Image에서 밉맵까지: RAM이 **44%** 줄었습니다. **311**에서 **174
 </div>
 <div class="card !py-2">
 
-**3. Match pixel budget to display size** — PixelRatio-aware mipmaps = massive savings
+**3. Pre-generate & cache thumbnails** — Skip PHImageManager, reuse across the app
 
 </div>
 <div class="card !py-2">
@@ -1146,7 +1154,7 @@ RN Image에서 밉맵까지: RAM이 **44%** 줄었습니다. **311**에서 **174
 </div>
 <div class="card-bad !py-2">
 
-**5. Beware of hooks in recycled views** — old images pile up → crash
+**5. Beware of hooks in recycled views** — hook state never cleans up → crash
 
 </div>
 </div>
@@ -1157,42 +1165,42 @@ One. Don't load what you don't show.<br>
 Use batch loading with ph:// references. Keep memory low from the start.<br>
 Two. The right image component is the most important choice.<br>
 Pick one that handles asset URIs on the native side. Not through the JavaScript bridge.<br>
-Three. Match your pixels to your screen size.<br>
-Use PixelRatio. Make mipmaps at the exact size. Cache them on disk.<br>
-Don't decode **24** megapixels for a thumbnail.<br>
+Three. Pre-generate and cache your thumbnails.<br>
+Even though expo-image downscales for you, pre-made mipmaps skip PHImageManager entirely.<br>
+They load faster, and you can reuse them across any screen in the app.<br>
 Four. Recycle, don't recreate.<br>
 FlashList gives smooth scrolling with no blank cells. Even with thousands of photos.<br>
 Five. Be careful with hooks in recycled views.<br>
-useImage keeps images in memory. FlashList reuses cells, it doesn't destroy them.<br>
-So old images pile up and the app crashes.<br>
+useImage manages images as hook state. FlashList recycles cells without unmounting them.<br>
+So the hook never cleans up. Old references pile up and the app crashes.<br>
 
 (렛 미 **피니시** 위드 **파이브** 레슨즈.<br>
 원. 돈트 로드 왓 유 돈트 쇼.<br>
 유즈 배치 로딩 위드 피에이치 레퍼런시즈. 킵 메모리 로우 프롬 더 스타트.<br>
 투. 더 라이트 이미지 컴포넌트 이즈 더 모스트 임포턴트 **초이스**.<br>
 픽 원 댓 핸들즈 에셋 유아아이즈 온 더 네이티브 사이드. 낫 쓰루 더 자바스크립트 **브릿지**.<br>
-쓰리. 매치 유어 픽셀즈 투 유어 스크린 사이즈.<br>
-유즈 픽셀레이쇼. 메이크 밉맵스 앳 디 이잭트 사이즈. 캐시 뎀 온 디스크.<br>
-돈트 디코드 **트웬티포** 메가픽셀즈 포 어 썸네일.<br>
+쓰리. 프리-**제너레이트** 앤드 캐시 유어 썸네일즈.<br>
+이븐 도우 엑스포-이미지 다운스케일즈 포 유, 프리-메이드 밉맵스 스킵 피에이치이미지매니저 인**타이얼리**.<br>
+데이 로드 패스터, 앤드 유 캔 리유즈 뎀 어크로스 에니 스크린 인 디 앱.<br>
 포. **리사이클**, 돈트 리크리에이트.<br>
 플래시리스트 기브즈 스무드 스크롤링 위드 노 블랭크 셀즈. 이븐 위드 타우전즈 오브 포토즈.<br>
 파이브. 비 **케어풀** 위드 훅스 인 리사이클드 뷰즈.<br>
-유즈이미지 킵스 이미지즈 인 메모리. 플래시리스트 리유지즈 셀즈, 잇 더전트 디스트로이 뎀.<br>
-쏘 올드 이미지즈 파일 업 앤드 디 앱 크래시즈.)<br>
+유즈이미지 매니지즈 이미지즈 애즈 훅 스테이트. 플래시리스트 리사이클즈 셀즈 위다웃 **언마운팅** 뎀.<br>
+쏘 더 훅 네버 클린즈 업. 올드 레퍼런시즈 파일 업 앤드 디 앱 크래시즈.)<br>
 
 **5**가지 교훈으로 마무리합니다.<br>
 하나. 보여주지 않는 것은 로드하지 마세요.<br>
 ph:// 참조로 배치 로딩. 처음부터 메모리를 낮게 유지하세요.<br>
 둘. 올바른 이미지 컴포넌트 선택이 가장 중요합니다.<br>
 에셋 URI를 네이티브에서 처리하는 것을 선택하세요.<br>
-셋. 픽셀을 화면 크기에 맞추세요.<br>
-PixelRatio를 사용하세요. 정확한 크기의 밉맵을 만들고 디스크에 캐시하세요.<br>
+셋. 썸네일을 미리 생성하고 캐시하세요.<br>
+expo-image가 다운스케일해주지만, 미리 만든 밉맵은 PHImageManager를 완전히 건너뜁니다.<br>
+더 빠르게 로드되고, 앱 어디서든 재사용할 수 있습니다.<br>
 넷. 재생성 말고 재활용.<br>
 FlashList는 빈 셀 없이 매끄러운 스크롤을 제공합니다.<br>
 다섯. 재활용되는 뷰에서 훅 사용에 주의하세요.<br>
-useImage는 이미지를 메모리에 유지합니다.<br>
-FlashList는 셀을 재사용하지 파괴하지 않습니다.<br>
-그래서 이전 이미지가 쌓이고 앱이 크래시됩니다.<br>
+useImage는 훅 상태로 이미지를 관리합니다. FlashList는 셀을 언마운트하지 않고 재활용합니다.<br>
+훅이 정리되지 않습니다. 이전 참조가 쌓이고 앱이 크래시됩니다.<br>
 -->
 
 ---

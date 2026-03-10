@@ -128,22 +128,24 @@ We need a better image component.
 
 Still on rendering.
 I looked for other options.
-I found an Expo GitHub issue.
-It said to use the useImage hook from expo-image.
-It looked like a good idea.
+I found an Expo GitHub issue about the memory problem.
+Someone suggested using the useImage hook from expo-image.
+It sounded promising.
 But when I used useImage with FlashList, it was a disaster.
 RAM went up to 4,848 megabytes.
 That's almost 5 gigs.
 The app crashed right away.
 Why?
-useImage loads full-size images and keeps them in memory.
-But FlashList reuses cells.
-It doesn't destroy them.
-So old images stay in memory.
+useImage is a React hook.
+It manages image loading as component state.
+But FlashList recycles cells.
+It doesn't unmount them.
+So the hook never cleans up.
+Old image references stay in memory.
 They keep piling up.
 It's a memory leak.
 The lesson: be careful with hooks in recycled views.
-We need a component that handles ph:// URIs on the native side.
+We need a component that handles images on the native side, not through JS state.
 
 ---
 
@@ -154,6 +156,9 @@ Use the expo-image component directly.
 Not through a hook.
 expo-image handles ph:// URIs on the native side.
 No async JavaScript calls.
+And here's the key — it doesn't load the full 24 megapixel image.
+It uses iOS PHImageManager with a target size matching the view.
+So it only requests the pixels it actually needs for display.
 It also supports view recycling with the recyclingKey prop.
 When a cell is reused, recyclingKey tells expo-image to clear the old image and load the new one.
 The results are great.
@@ -161,30 +166,28 @@ Load time: 85 milliseconds.
 That's 45 times faster than RN Image.
 RAM: 182 megabytes.
 Smooth scrolling.
-But we still decode full-size photos — up to 24 megapixels — for small thumbnails.
-Can we do better?
+But every time a cell appears, iOS still has to fetch and resize the photo from the library.
+Can we skip that step entirely?
 
 ---
 
 ## Slide 10: Decoding - Mipmaps Concept (50s)
 
 Now, decoding.
-This is where mipmaps help.
-Think about it.
-Our photos are 8 to 24 megapixels.
-But the grid cell is only 98 by 98 points.
+This is where mipmaps take it further.
+expo-image already asks iOS for a smaller version.
+That's great.
+But every time a new cell appears, iOS still has to find the photo in the library, resize it, and return it.
+What if we pre-generate small JPEG thumbnails and cache them on disk?
+That's mipmapping.
+One-time cost, then reuse forever.
+Our grid cell is 98 by 98 points.
 On a 3x retina screen, that's 294 by 294 pixels.
-We decode up to 24 million pixels.
-But we only need about 86 thousand.
-That's up to 280 times more data than we need.
-All that extra detail is wasted.
-The image gets shrunk for display anyway.
-But the full photo is already in memory.
-The idea is simple.
-Make a small JPEG thumbnail ahead of time.
-The exact size we need.
-Then reuse it forever.
-This is called mipmapping.
+We make a small JPEG at exactly that size.
+About 20 to 30 kilobytes.
+On second launch, the thumbnails are already on disk.
+No waiting for PHImageManager.
+And these cached images are easy to reuse anywhere in the app — different screens, different components.
 
 ---
 
@@ -303,18 +306,17 @@ Keep memory low from the start.
 Two. The right image component is the most important choice.
 Pick one that handles asset URIs on the native side.
 Not through the JavaScript bridge.
-Three. Match your pixels to your screen size.
-Use PixelRatio.
-Make mipmaps at the exact size.
-Cache them on disk.
-Don't decode 24 megapixels for a thumbnail.
+Three. Pre-generate and cache your thumbnails.
+Even though expo-image downscales for you, pre-made mipmaps skip PHImageManager entirely.
+They load faster, and you can reuse them across any screen in the app.
 Four. Recycle, don't recreate.
 FlashList gives smooth scrolling with no blank cells.
 Even with thousands of photos.
 Five. Be careful with hooks in recycled views.
-useImage keeps images in memory.
-FlashList reuses cells, it doesn't destroy them.
-So old images pile up and the app crashes.
+useImage manages images as hook state.
+FlashList recycles cells without unmounting them.
+So the hook never cleans up.
+Old references pile up and the app crashes.
 
 ---
 
