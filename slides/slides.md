@@ -574,8 +574,8 @@ JS 상태가 아닌 네이티브에서 이미지를 처리하는 컴포넌트가
 <div class="card-good mt-4">
 
 - Native **ph:// resolution** — no async JS calls
-- Requests **display-sized** image from iOS, not full-res
-- Built-in **view recycling** with `recyclingKey`
+- Requests **display-sized** image, not full-res
+- Built-in **cache** + **view recycling**
 - Avg load: <span class="metric-good">~85ms</span>
 - RAM: <span class="metric-good">~182MB</span>
 
@@ -600,8 +600,9 @@ When a cell is reused, recyclingKey tells expo-image to clear the old image and 
 The results are great.<br>
 Load time: **85** milliseconds. That's **45** times faster than RN Image.<br>
 RAM: **182** megabytes. Smooth scrolling.<br>
-But every time a cell appears, iOS still has to fetch and resize the photo from the library.<br>
-Can we skip that step entirely?<br>
+expo-image has its own cache too. But the cache is managed by SDWebImage internally.<br>
+With **1,809** photos, entries can get evicted. And you can't control the cache or reuse it across screens.<br>
+Can we do better with a cache we fully own?<br>
 
 (디 앤서 이즈 **심플**. 유즈 디 엑스포-이미지 컴포넌트 디렉틀리. 낫 쓰루 어 훅.<br>
 엑스포-이미지 핸들즈 피에이치 유아아이즈 온 더 네이티브 사이드. 노 어싱크 자바스크립트 콜즈.<br>
@@ -613,8 +614,9 @@ Can we skip that step entirely?<br>
 더 리절츠 아 **그레이트**.<br>
 로드 타임: **에이티파이브** 밀리세컨즈. 댓츠 **포티파이브** 타임즈 **패스터** 댄 아알엔 이미지.<br>
 램: **원에이티투** 메가바이츠. 스무드 스크롤링.<br>
-벗 에브리 타임 어 셀 어피어즈, 아이오에스 스틸 해즈 투 페치 앤드 리사이즈 더 포토 프롬 더 라이브러리.<br>
-캔 위 스킵 댓 스텝 인**타이얼리**?)<br>
+엑스포-이미지 해즈 잇츠 오운 캐시 투. 벗 더 캐시 이즈 매니지드 바이 에스디웹이미지 인터널리.<br>
+위드 **에이틴헌드레드앤나인** 포토즈, 엔트리즈 캔 겟 이**빅티드**. 앤드 유 캔트 컨트롤 더 캐시 오어 리유즈 잇 어크로스 스크린즈.<br>
+캔 위 두 베터 위드 어 캐시 위 풀리 **오운**?)<br>
 
 답은 간단합니다. expo-image 컴포넌트를 직접 사용하세요. 훅을 통하지 말고.<br>
 expo-image는 네이티브에서 ph:// URI를 처리합니다. 비동기 JavaScript 호출이 없습니다.<br>
@@ -626,8 +628,9 @@ recyclingKey 프랍으로 뷰 리사이클링도 지원합니다.<br>
 결과가 좋습니다.<br>
 로드 시간: **85**밀리초. RN Image보다 **45**배 빠릅니다.<br>
 RAM: **182**메가바이트. 스크롤도 매끄럽습니다.<br>
-하지만 새 셀이 나타날 때마다 iOS가 여전히 포토 라이브러리에서 사진을 가져와 리사이즈해야 합니다.<br>
-이 단계를 완전히 건너뛸 수 있을까요?<br>
+expo-image는 자체 캐시도 있습니다. 하지만 SDWebImage가 내부적으로 관리합니다.<br>
+**1,809**장이면 캐시 항목이 제거될 수 있습니다. 캐시를 직접 제어하거나 다른 화면에서 재사용할 수 없습니다.<br>
+우리가 완전히 소유하는 캐시로 더 개선할 수 있을까요?<br>
 -->
 
 ---
@@ -660,9 +663,9 @@ storage.set(cacheKey, destFile.uri);
 
 <div class="card">
 
-- expo-image asks iOS to resize **every time**
+- expo-image cache: **auto-evicted**, no direct control
 - Mipmap: pre-generated **~294 x 294** px JPEG
-- **~20–30 KB** — loads faster than PHImageManager
+- **~20–30 KB** — you own the cache, **no eviction**
 - **Disk-cached** → instant on relaunch
 - Easy to **reuse** across any screen in the app
 
@@ -673,30 +676,30 @@ storage.set(cacheKey, destFile.uri);
 
 <!--
 Now, decoding. This is where mipmaps take it further.<br>
-expo-image already asks iOS for a smaller version. That's great.<br>
-But every time a new cell appears, iOS still has to find the photo in the library, resize it, and return it.<br>
-What if we pre-generate small JPEG thumbnails and cache them on disk?<br>
-That's mipmapping. One-time cost, then reuse forever.<br>
+expo-image already downscales and caches. That's great.<br>
+But the cache is managed by SDWebImage. With many photos, entries get evicted. You can't control it.<br>
+What if we pre-generate small JPEG thumbnails and own the cache ourselves?<br>
+That's mipmapping. One-time cost, then reuse forever. No eviction.<br>
 Our grid cell is **98** by **98** points. On a **3x** retina screen, that's **294** by **294** pixels.<br>
 We make a small JPEG at exactly that size. About **20** to **30** kilobytes.<br>
 On second launch, the thumbnails are already on disk. No waiting for PHImageManager.<br>
 And these cached images are easy to reuse anywhere in the app — different screens, different components.<br>
 
 (나우, **디코딩**. 디스 이즈 웨어 밉맵스 테이크 잇 **퍼더**.<br>
-엑스포-이미지 올레디 애스크스 아이오에스 포 어 스몰러 **버전**. 댓츠 그레이트.<br>
-벗 에브리 타임 어 뉴 셀 어피어즈, 아이오에스 스틸 해즈 투 파인드 더 포토 인 더 라이브러리, 리사이즈 잇, 앤드 리턴 잇.<br>
-왓 이프 위 프리-**제너레이트** 스몰 제이펙 썸네일즈 앤드 캐시 뎀 온 디스크?<br>
-댓츠 **밉매핑**. 원-타임 코스트, 덴 리유즈 포에버.<br>
+엑스포-이미지 올레디 다운스케일즈 앤드 캐시즈. 댓츠 그레이트.<br>
+벗 더 캐시 이즈 매니지드 바이 에스디웹이미지. 위드 매니 포토즈, 엔트리즈 겟 이**빅티드**. 유 캔트 컨트롤 잇.<br>
+왓 이프 위 프리-**제너레이트** 스몰 제이펙 썸네일즈 앤드 오운 더 캐시 아워**셀브즈**?<br>
+댓츠 **밉매핑**. 원-타임 코스트, 덴 리유즈 포에버. 노 이**빅션**.<br>
 아워 그리드 셀 이즈 **나인티에잇** 바이 **나인티에잇** 포인츠. 온 어 **쓰리엑스** 레티나 스크린, 댓츠 **투헌드레드나인티포** 바이 **투헌드레드나인티포** 픽셀즈.<br>
 위 메이크 어 스몰 제이펙 앳 이잭틀리 댓 사이즈. 어바웃 **트웬티** 투 **써티** 킬로바이츠.<br>
 온 세컨드 론치, 더 썸네일즈 아 올레디 온 디스크. 노 웨이팅 포 피에이치이미지매니저.<br>
 앤드 디즈 캐시드 이미지즈 아 이지 투 리유즈 **애니웨어** 인 디 앱 — 디퍼런트 스크린즈, 디퍼런트 컴포넌츠.)<br>
 
 이제 디코딩입니다. 밉맵으로 한 단계 더 나아갑니다.<br>
-expo-image는 이미 iOS에 작은 버전을 요청합니다. 좋습니다.<br>
-하지만 새 셀이 나타날 때마다 iOS가 포토 라이브러리에서 사진을 찾아 리사이즈하고 반환해야 합니다.<br>
-작은 JPEG 썸네일을 미리 생성하고 디스크에 캐싱하면 어떨까요?<br>
-이것이 밉매핑입니다. 한 번만 생성하고 영원히 재사용합니다.<br>
+expo-image는 이미 다운스케일하고 캐시합니다. 좋습니다.<br>
+하지만 캐시는 SDWebImage가 관리합니다. 사진이 많으면 캐시 항목이 제거됩니다. 제어할 수 없습니다.<br>
+작은 JPEG 썸네일을 미리 생성하고 캐시를 직접 소유하면 어떨까요?<br>
+이것이 밉매핑입니다. 한 번만 생성하고 영원히 재사용합니다. 제거되지 않습니다.<br>
 그리드 셀은 **98**x**98** 포인트입니다. **3x** 레티나 화면에서 **294**x**294** 픽셀입니다.<br>
 정확히 그 크기로 작은 JPEG를 만듭니다. 약 **20~30**킬로바이트입니다.<br>
 두 번째 실행에서는 썸네일이 이미 디스크에 있습니다. PHImageManager를 기다릴 필요가 없습니다.<br>
@@ -1144,7 +1147,7 @@ RN Image에서 밉맵까지: RAM이 **44%** 줄었습니다. **311**에서 **174
 </div>
 <div class="card !py-2">
 
-**3. Pre-generate & cache thumbnails** — Skip PHImageManager, reuse across the app
+**3. Own your thumbnail cache** — No eviction, reusable across the app
 
 </div>
 <div class="card !py-2">
@@ -1165,9 +1168,9 @@ One. Don't load what you don't show.<br>
 Use batch loading with ph:// references. Keep memory low from the start.<br>
 Two. The right image component is the most important choice.<br>
 Pick one that handles asset URIs on the native side. Not through the JavaScript bridge.<br>
-Three. Pre-generate and cache your thumbnails.<br>
-Even though expo-image downscales for you, pre-made mipmaps skip PHImageManager entirely.<br>
-They load faster, and you can reuse them across any screen in the app.<br>
+Three. Own your thumbnail cache.<br>
+expo-image caches for you, but that cache can be evicted. You can't control it.<br>
+With mipmaps, you own every file. No eviction, and you can reuse them across any screen.<br>
 Four. Recycle, don't recreate.<br>
 FlashList gives smooth scrolling with no blank cells. Even with thousands of photos.<br>
 Five. Be careful with hooks in recycled views.<br>
@@ -1179,9 +1182,9 @@ So the hook never cleans up. Old references pile up and the app crashes.<br>
 유즈 배치 로딩 위드 피에이치 레퍼런시즈. 킵 메모리 로우 프롬 더 스타트.<br>
 투. 더 라이트 이미지 컴포넌트 이즈 더 모스트 임포턴트 **초이스**.<br>
 픽 원 댓 핸들즈 에셋 유아아이즈 온 더 네이티브 사이드. 낫 쓰루 더 자바스크립트 **브릿지**.<br>
-쓰리. 프리-**제너레이트** 앤드 캐시 유어 썸네일즈.<br>
-이븐 도우 엑스포-이미지 다운스케일즈 포 유, 프리-메이드 밉맵스 스킵 피에이치이미지매니저 인**타이얼리**.<br>
-데이 로드 패스터, 앤드 유 캔 리유즈 뎀 어크로스 에니 스크린 인 디 앱.<br>
+쓰리. 오운 유어 썸네일 캐시.<br>
+엑스포-이미지 캐시즈 포 유, 벗 댓 캐시 캔 비 이**빅티드**. 유 캔트 컨트롤 잇.<br>
+위드 밉맵스, 유 오운 에브리 파일. 노 이빅션, 앤드 유 캔 리유즈 뎀 어크로스 에니 스크린.<br>
 포. **리사이클**, 돈트 리크리에이트.<br>
 플래시리스트 기브즈 스무드 스크롤링 위드 노 블랭크 셀즈. 이븐 위드 타우전즈 오브 포토즈.<br>
 파이브. 비 **케어풀** 위드 훅스 인 리사이클드 뷰즈.<br>
@@ -1193,9 +1196,9 @@ So the hook never cleans up. Old references pile up and the app crashes.<br>
 ph:// 참조로 배치 로딩. 처음부터 메모리를 낮게 유지하세요.<br>
 둘. 올바른 이미지 컴포넌트 선택이 가장 중요합니다.<br>
 에셋 URI를 네이티브에서 처리하는 것을 선택하세요.<br>
-셋. 썸네일을 미리 생성하고 캐시하세요.<br>
-expo-image가 다운스케일해주지만, 미리 만든 밉맵은 PHImageManager를 완전히 건너뜁니다.<br>
-더 빠르게 로드되고, 앱 어디서든 재사용할 수 있습니다.<br>
+셋. 썸네일 캐시를 직접 소유하세요.<br>
+expo-image가 캐시해주지만, 그 캐시는 제거될 수 있습니다. 제어할 수 없습니다.<br>
+밉맵으로 모든 파일을 직접 소유합니다. 제거 없이, 어떤 화면에서든 재사용 가능합니다.<br>
 넷. 재생성 말고 재활용.<br>
 FlashList는 빈 셀 없이 매끄러운 스크롤을 제공합니다.<br>
 다섯. 재활용되는 뷰에서 훅 사용에 주의하세요.<br>

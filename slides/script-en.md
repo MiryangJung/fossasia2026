@@ -166,8 +166,9 @@ Load time: 85 milliseconds.
 That's 45 times faster than RN Image.
 RAM: 182 megabytes.
 Smooth scrolling.
-But every time a cell appears, iOS still has to fetch and resize the photo from the library.
-Can we skip that step entirely?
+expo-image has its own cache too. But the cache is managed by SDWebImage internally.
+With 1,809 photos, entries can get evicted. And you can't control the cache or reuse it across screens.
+Can we do better with a cache we fully own?
 
 ---
 
@@ -175,12 +176,12 @@ Can we skip that step entirely?
 
 Now, decoding.
 This is where mipmaps take it further.
-expo-image already asks iOS for a smaller version.
+expo-image already downscales and caches.
 That's great.
-But every time a new cell appears, iOS still has to find the photo in the library, resize it, and return it.
-What if we pre-generate small JPEG thumbnails and cache them on disk?
+But the cache is managed by SDWebImage. With many photos, entries get evicted. You can't control it.
+What if we pre-generate small JPEG thumbnails and own the cache ourselves?
 That's mipmapping.
-One-time cost, then reuse forever.
+One-time cost, then reuse forever. No eviction.
 Our grid cell is 98 by 98 points.
 On a 3x retina screen, that's 294 by 294 pixels.
 We make a small JPEG at exactly that size.
@@ -306,9 +307,9 @@ Keep memory low from the start.
 Two. The right image component is the most important choice.
 Pick one that handles asset URIs on the native side.
 Not through the JavaScript bridge.
-Three. Pre-generate and cache your thumbnails.
-Even though expo-image downscales for you, pre-made mipmaps skip PHImageManager entirely.
-They load faster, and you can reuse them across any screen in the app.
+Three. Own your thumbnail cache.
+expo-image caches for you, but that cache can be evicted. You can't control it.
+With mipmaps, you own every file. No eviction, and you can reuse them across any screen.
 Four. Recycle, don't recreate.
 FlashList gives smooth scrolling with no blank cells.
 Even with thousands of photos.
